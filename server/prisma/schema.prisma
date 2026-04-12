@@ -8,12 +8,39 @@ datasource db {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String   @map("password_hash")
+  id           String  @id @default(cuid())
+  email        String  @unique
+  passwordHash String  @map("password_hash")
   name         String
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
+  boards       Board[]
 
   @@map("users")
+}
+
+model Board {
+  id        String   @id @default(cuid())
+  name      String
+  createdBy String   @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  creator User     @relation(fields: [createdBy], references: [id])
+  columns Column[]
+
+  @@index([createdBy])
+  @@map("boards")
+}
+
+model Column {
+  id       String @id @default(cuid())
+  boardId  String @map("board_id")
+  name     String
+  position Int
+
+  board Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
+
+  @@index([boardId])
+  @@unique([boardId, position])
+  @@map("columns")
 }
