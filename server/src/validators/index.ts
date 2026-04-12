@@ -1,4 +1,5 @@
 export * from './auth';
+export * from './assignment';
 export * from './board';
 export * from './column';
 export * from './healthSchemas';

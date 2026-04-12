@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import type { BulkReorderTasksBody, CreateTaskBody, UpdateTaskBody } from '../validators/task';
 
@@ -9,6 +10,35 @@ export class TaskError extends Error {
     this.name = 'TaskError';
     this.statusCode = statusCode;
   }
+}
+
+const taskWithAssigneesInclude = {
+  taskAssignments: {
+    select: {
+      user: {
+        select: {
+          id: true,
+          name: true
+        }
+      }
+    }
+  }
+} as const;
+
+type TaskWithAssigneesRecord = Prisma.TaskGetPayload<{
+  include: typeof taskWithAssigneesInclude;
+}>;
+
+function mapTaskWithAssignees(task: TaskWithAssigneesRecord) {
+  const { taskAssignments, ...taskData } = task;
+
+  return {
+    ...taskData,
+    assignees: taskAssignments.map((assignment) => ({
+      id: assignment.user.id,
+      name: assignment.user.name
+    }))
+  };
 }
 
 async function assertColumnOwnership(columnId: string, userId: string): Promise<void> {
@@ -29,7 +59,7 @@ async function assertColumnOwnership(columnId: string, userId: string): Promise<
   }
 }
 
-async function findOwnedTask(taskId: string, userId: string) {
+async function findOwnedTask(taskId: string, userId: string): Promise<TaskWithAssigneesRecord> {
   const task = await prisma.task.findFirst({
     where: {
       id: taskId,
@@ -38,7 +68,8 @@ async function findOwnedTask(taskId: string, userId: string) {
           createdBy: userId
         }
       }
-    }
+    },
+    include: taskWithAssigneesInclude
   });
 
   if (!task) {
@@ -51,15 +82,23 @@ async function findOwnedTask(taskId: string, userId: string) {
 export async function listTasksInColumn(userId: string, columnId: string) {
   await assertColumnOwnership(columnId, userId);
 
-  return prisma.task.findMany({
+  const tasks = await prisma.task.findMany({
     where: { columnId },
     orderBy: {
       position: 'asc'
-    }
+    },
+    include: taskWithAssigneesInclude
   });
+
+  return tasks.map(mapTaskWithAssignees);
 }
 
 export async function getTaskById(userId: string, taskId: string) {
+  const task = await findOwnedTask(taskId, userId);
+  return mapTaskWithAssignees(task);
+}
+
+export async function getOwnedTaskWithAssignees(userId: string, taskId: string) {
   return findOwnedTask(taskId, userId);
 }
 
@@ -78,7 +117,7 @@ export async function createTask(userId: string, input: CreateTaskBody) {
     position = lastTask ? lastTask.position + 1 : 0;
   }
 
-  return prisma.task.create({
+  const task = await prisma.task.create({
     data: {
       columnId: input.columnId,
       title: input.title,
@@ -87,8 +126,11 @@ export async function createTask(userId: string, input: CreateTaskBody) {
       priority: input.priority ?? 'MEDIUM',
       position,
       createdBy: userId
-    }
+    },
+    include: taskWithAssigneesInclude
   });
+
+  return mapTaskWithAssignees(task);
 }
 
 export async function updateTask(userId: string, taskId: string, input: UpdateTaskBody) {
@@ -98,7 +140,7 @@ export async function updateTask(userId: string, taskId: string, input: UpdateTa
     await assertColumnOwnership(input.columnId, userId);
   }
 
-  return prisma.task.update({
+  const task = await prisma.task.update({
     where: { id: taskId },
     data: {
       ...(input.columnId ? { columnId: input.columnId } : {}),
@@ -107,8 +149,11 @@ export async function updateTask(userId: string, taskId: string, input: UpdateTa
       ...(input.dueDate !== undefined ? { dueDate: input.dueDate } : {}),
       ...(input.priority !== undefined ? { priority: input.priority } : {}),
       ...(input.position !== undefined ? { position: input.position } : {})
-    }
+    },
+    include: taskWithAssigneesInclude
   });
+
+  return mapTaskWithAssignees(task);
 }
 
 export async function deleteTask(userId: string, taskId: string) {
@@ -156,10 +201,26 @@ export async function bulkReorderTasks(userId: string, input: BulkReorderTasksBo
     )
   );
 
-  return prisma.task.findMany({
+  const reorderedTasks = await prisma.task.findMany({
     where: { id: { in: taskIds } },
     orderBy: {
       position: 'asc'
-    }
+    },
+    include: taskWithAssigneesInclude
   });
+
+  return reorderedTasks.map(mapTaskWithAssignees);
+}
+
+export async function getTaskWithAssigneesById(taskId: string) {
+  const task = await prisma.task.findUnique({
+    where: { id: taskId },
+    include: taskWithAssigneesInclude
+  });
+
+  if (!task) {
+    throw new TaskError('Task not found', 404);
+  }
+
+  return mapTaskWithAssignees(task);
 }
