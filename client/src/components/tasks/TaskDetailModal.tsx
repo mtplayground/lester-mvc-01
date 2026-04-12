@@ -2,6 +2,8 @@ import axios from 'axios';
 import { useEffect, useState } from 'react';
 import { z } from 'zod';
 import { api } from '../../lib/api';
+import type { BoardLabel } from '../labels/LabelManager';
+import LabelPicker from '../labels/LabelPicker';
 import AssigneePicker, { type AssigneePickerUser } from './AssigneePicker';
 import PriorityBadge from './PriorityBadge';
 import TaskEditForm, { type TaskEditValues } from './TaskEditForm';
@@ -19,12 +21,18 @@ interface TaskDetailModalTask {
     name: string;
     avatarUrl?: string | null;
   }>;
+  labels?: Array<{
+    id: string;
+    name: string;
+    color: string;
+  }>;
 }
 
 interface TaskDetailModalProps {
   isOpen: boolean;
   isSaving?: boolean;
   saveError?: string | null;
+  availableLabels: BoardLabel[];
   task: TaskDetailModalTask | null;
   onClose: () => void;
   onSave: (values: TaskEditValues) => Promise<void>;
@@ -93,6 +101,17 @@ const taskUpdateSchema = z
           })
           .passthrough()
       )
+      .optional(),
+    labels: z
+      .array(
+        z
+          .object({
+            id: z.string().min(1),
+            name: z.string().min(1),
+            color: z.string().min(1)
+          })
+          .passthrough()
+      )
       .optional()
   })
   .passthrough();
@@ -101,6 +120,7 @@ export default function TaskDetailModal({
   isOpen,
   isSaving = false,
   saveError = null,
+  availableLabels,
   task,
   onClose,
   onSave,
@@ -192,6 +212,11 @@ export default function TaskDetailModal({
           id: assignee.id,
           name: assignee.name,
           avatarUrl: assignee.avatarUrl ?? null
+        })),
+        labels: (updatedTask.labels ?? []).map((label) => ({
+          id: label.id,
+          name: label.name,
+          color: label.color
         }))
       });
 
@@ -239,6 +264,14 @@ export default function TaskDetailModal({
             isMutatingUserId={isMutatingUserId}
             onToggle={handleToggleAssignee}
             users={users}
+          />
+        </div>
+
+        <div className="mb-4">
+          <LabelPicker
+            labels={availableLabels}
+            onTaskUpdate={onTaskUpdate}
+            task={task}
           />
         </div>
 

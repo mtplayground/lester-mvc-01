@@ -7,6 +7,12 @@ export interface BoardTaskAssignee {
   avatarUrl?: string | null;
 }
 
+export interface BoardTaskLabel {
+  id: string;
+  name: string;
+  color: string;
+}
+
 export interface BoardTask {
   id: string;
   columnId: string;
@@ -16,6 +22,7 @@ export interface BoardTask {
   position: number;
   dueDate?: string | null;
   assignees?: BoardTaskAssignee[];
+  labels?: BoardTaskLabel[];
 }
 
 export type TasksByColumn = Record<string, BoardTask[]>;
