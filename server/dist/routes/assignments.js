@@ -1,0 +1,13 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const assignmentController_1 = require("../controllers/assignmentController");
+const auth_1 = require("../middleware/auth");
+const validators_1 = require("../validators");
+const assignment_1 = require("../validators/assignment");
+const assignmentRoutes = (0, express_1.Router)();
+assignmentRoutes.use(auth_1.requireAuth);
+assignmentRoutes.get('/users', (0, validators_1.validateRequest)({ query: assignment_1.AssignmentUsersQuerySchema }), assignmentController_1.getAssignableUsers);
+assignmentRoutes.post('/', (0, validators_1.validateRequest)({ body: assignment_1.AssignmentBodySchema }), assignmentController_1.postTaskAssignment);
+assignmentRoutes.delete('/', (0, validators_1.validateRequest)({ body: assignment_1.AssignmentBodySchema }), assignmentController_1.deleteTaskAssignment);
+exports.default = assignmentRoutes;

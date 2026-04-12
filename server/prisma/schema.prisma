@@ -23,6 +23,8 @@ model User {
   boards       Board[]
   tasks        Task[]
   taskAssignments TaskAssignment[]
+  comments       Comment[]
+  activities     Activity[]
 
   @@map("users")
 }
@@ -71,6 +73,8 @@ model Task {
   creator User   @relation(fields: [createdBy], references: [id])
   taskAssignments TaskAssignment[]
   taskLabels      TaskLabel[]
+  comments        Comment[]
+  activities      Activity[]
 
   @@index([columnId])
   @@index([createdBy])
@@ -114,4 +118,35 @@ model TaskLabel {
   @@id([taskId, labelId])
   @@index([labelId])
   @@map("task_labels")
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  taskId    String   @map("task_id")
+  userId    String   @map("user_id")
+  content   String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+  @@index([userId])
+  @@map("comments")
+}
+
+model Activity {
+  id        String   @id @default(cuid())
+  taskId    String   @map("task_id")
+  userId    String   @map("user_id")
+  action    String
+  metadata  Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+  @@index([userId])
+  @@map("activities")
 }
