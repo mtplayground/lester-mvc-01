@@ -11,6 +11,7 @@ export interface BoardTask {
   id: string;
   columnId: string;
   title: string;
+  description?: string | null;
   priority: 'LOW' | 'MEDIUM' | 'HIGH';
   position: number;
   dueDate?: string | null;
