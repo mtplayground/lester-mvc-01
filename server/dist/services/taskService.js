@@ -10,6 +10,7 @@ exports.deleteTask = deleteTask;
 exports.bulkReorderTasks = bulkReorderTasks;
 exports.getTaskWithAssigneesById = getTaskWithAssigneesById;
 const prisma_1 = require("../lib/prisma");
+const activityService_1 = require("./activityService");
 class TaskError extends Error {
     constructor(message, statusCode) {
         super(message);
@@ -130,6 +131,7 @@ async function createTask(userId, input) {
         },
         include: taskWithAssigneesInclude
     });
+    await (0, activityService_1.logTaskCreated)(userId, task.id);
     return mapTaskWithAssignees(task);
 }
 async function updateTask(userId, taskId, input) {
@@ -148,6 +150,14 @@ async function updateTask(userId, taskId, input) {
             ...(input.position !== undefined ? { position: input.position } : {})
         },
         include: taskWithAssigneesInclude
+    });
+    await (0, activityService_1.logTaskMoved)({
+        taskId: task.id,
+        userId,
+        fromColumnId: existingTask.columnId,
+        toColumnId: task.columnId,
+        fromPosition: existingTask.position,
+        toPosition: task.position
     });
     return mapTaskWithAssignees(task);
 }
@@ -171,7 +181,9 @@ async function bulkReorderTasks(userId, input) {
             }
         },
         select: {
-            id: true
+            id: true,
+            columnId: true,
+            position: true
         }
     });
     if (ownedTasks.length !== taskIds.length) {
@@ -184,6 +196,21 @@ async function bulkReorderTasks(userId, input) {
             position: task.position
         }
     })));
+    const taskBeforeById = new Map(ownedTasks.map((task) => [task.id, task]));
+    await Promise.all(input.tasks.map(async (taskUpdate) => {
+        const previousTask = taskBeforeById.get(taskUpdate.id);
+        if (!previousTask) {
+            return;
+        }
+        await (0, activityService_1.logTaskMoved)({
+            taskId: taskUpdate.id,
+            userId,
+            fromColumnId: previousTask.columnId,
+            toColumnId: taskUpdate.columnId,
+            fromPosition: previousTask.position,
+            toPosition: taskUpdate.position
+        });
+    }));
     const reorderedTasks = await prisma_1.prisma.task.findMany({
         where: { id: { in: taskIds } },
         orderBy: {

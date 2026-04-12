@@ -1,0 +1,11 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const activityController_1 = require("../controllers/activityController");
+const auth_1 = require("../middleware/auth");
+const validators_1 = require("../validators");
+const activity_1 = require("../validators/activity");
+const activityRoutes = (0, express_1.Router)();
+activityRoutes.use(auth_1.requireAuth);
+activityRoutes.get('/', (0, validators_1.validateRequest)({ query: activity_1.ActivityTaskQuerySchema }), activityController_1.getTaskActivityFeed);
+exports.default = activityRoutes;

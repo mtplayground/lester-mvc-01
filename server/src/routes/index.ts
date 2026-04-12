@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import activityRoutes from './activities';
 import assignmentRoutes from './assignments';
 import authRoutes from './auth';
 import boardRoutes from './boards';
@@ -11,6 +12,7 @@ import taskRoutes from './tasks';
 const router = Router();
 
 router.use('/auth', authRoutes);
+router.use('/activities', activityRoutes);
 router.use('/assignments', assignmentRoutes);
 router.use('/boards', boardRoutes);
 router.use('/columns', columnRoutes);

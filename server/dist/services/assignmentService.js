@@ -5,6 +5,7 @@ exports.listAssignableUsers = listAssignableUsers;
 exports.assignUserToTask = assignUserToTask;
 exports.unassignUserFromTask = unassignUserFromTask;
 const prisma_1 = require("../lib/prisma");
+const activityService_1 = require("./activityService");
 const taskService_1 = require("./taskService");
 class AssignmentError extends Error {
     constructor(message, statusCode) {
@@ -73,19 +74,26 @@ async function assignUserToTask(ownerId, taskId, assigneeUserId) {
     if (!assignee) {
         throw new AssignmentError('User not found', 404);
     }
-    await prisma_1.prisma.taskAssignment.upsert({
+    const existingAssignment = await prisma_1.prisma.taskAssignment.findUnique({
         where: {
             taskId_userId: {
                 taskId,
                 userId: assigneeUserId
             }
         },
-        create: {
-            taskId,
-            userId: assigneeUserId
-        },
-        update: {}
+        select: {
+            taskId: true
+        }
     });
+    if (!existingAssignment) {
+        await prisma_1.prisma.taskAssignment.create({
+            data: {
+                taskId,
+                userId: assigneeUserId
+            }
+        });
+        await (0, activityService_1.logTaskAssigned)(ownerId, taskId, assigneeUserId);
+    }
     try {
         return await (0, taskService_1.getTaskWithAssigneesById)(taskId);
     }

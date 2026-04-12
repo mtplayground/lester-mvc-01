@@ -4,6 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
+const activities_1 = __importDefault(require("./activities"));
 const assignments_1 = __importDefault(require("./assignments"));
 const auth_1 = __importDefault(require("./auth"));
 const boards_1 = __importDefault(require("./boards"));
@@ -14,6 +15,7 @@ const labels_1 = __importDefault(require("./labels"));
 const tasks_1 = __importDefault(require("./tasks"));
 const router = (0, express_1.Router)();
 router.use('/auth', auth_1.default);
+router.use('/activities', activities_1.default);
 router.use('/assignments', assignments_1.default);
 router.use('/boards', boards_1.default);
 router.use('/columns', columns_1.default);
