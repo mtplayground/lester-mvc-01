@@ -1,4 +1,5 @@
 import PriorityBadge from './PriorityBadge';
+import LabelBadge from '../labels/LabelBadge';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
@@ -16,6 +17,11 @@ export interface TaskCardData {
   priority: 'LOW' | 'MEDIUM' | 'HIGH';
   dueDate?: string | null;
   assignees?: TaskAssignee[];
+  labels?: Array<{
+    id: string;
+    name: string;
+    color: string;
+  }>;
 }
 
 interface TaskCardProps {
@@ -64,6 +70,7 @@ export default function TaskCard({ task, draggable = true, onClick }: TaskCardPr
 
   const dueDateLabel = formatDueDate(task.dueDate);
   const assignees = task.assignees ?? [];
+  const labels = task.labels ?? [];
   const assigneeTooltip = assignees.map((assignee) => assignee.name).join(', ');
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -87,6 +94,19 @@ export default function TaskCard({ task, draggable = true, onClick }: TaskCardPr
         <h4 className="line-clamp-2 text-sm font-medium text-slate-900">{task.title}</h4>
         <PriorityBadge priority={task.priority} />
       </div>
+
+      {labels.length > 0 ? (
+        <div className="flex flex-wrap gap-1">
+          {labels.slice(0, 3).map((label) => (
+            <LabelBadge color={label.color} key={label.id} name={label.name} />
+          ))}
+          {labels.length > 3 ? (
+            <span className="inline-flex items-center rounded-full border border-slate-200 px-2 py-0.5 text-[11px] font-medium text-slate-600">
+              +{labels.length - 3}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="flex items-center justify-between gap-2">
         {dueDateLabel ? <p className="text-xs text-slate-600">Due {dueDateLabel}</p> : <p className="text-xs text-slate-400">No due date</p>}

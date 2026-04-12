@@ -106,6 +106,7 @@ export default function BoardPage() {
   const [boardLabels, setBoardLabels] = useState<BoardLabel[]>([]);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [selectedAssigneeId, setSelectedAssigneeId] = useState('');
+  const [selectedLabelId, setSelectedLabelId] = useState('');
   const [isTaskSaving, setIsTaskSaving] = useState(false);
   const [taskModalError, setTaskModalError] = useState<string | null>(null);
 
@@ -157,18 +158,27 @@ export default function BoardPage() {
     return Array.from(uniqueAssignees.values()).sort((left, right) => left.name.localeCompare(right.name));
   }, [tasksByColumn]);
 
+  const labelFilterOptions = useMemo(
+    () => [...boardLabels].sort((left, right) => left.name.localeCompare(right.name)),
+    [boardLabels]
+  );
+
   const filteredTasksByColumn = useMemo(() => {
-    if (!selectedAssigneeId) {
+    if (!selectedAssigneeId && !selectedLabelId) {
       return tasksByColumn;
     }
 
     return Object.fromEntries(
       Object.entries(tasksByColumn).map(([columnId, tasks]) => [
         columnId,
-        tasks.filter((task) => (task.assignees ?? []).some((assignee) => assignee.id === selectedAssigneeId))
+        tasks.filter((task) => {
+          const matchesAssignee = !selectedAssigneeId || (task.assignees ?? []).some((assignee) => assignee.id === selectedAssigneeId);
+          const matchesLabel = !selectedLabelId || (task.labels ?? []).some((label) => label.id === selectedLabelId);
+          return matchesAssignee && matchesLabel;
+        })
       ])
     );
-  }, [selectedAssigneeId, tasksByColumn]);
+  }, [selectedAssigneeId, selectedLabelId, tasksByColumn]);
 
   function setColumnTaskError(columnId: string, message: string | null): void {
     setTaskErrorsByColumn((previous) => ({
@@ -507,8 +517,11 @@ export default function BoardPage() {
 
         <BoardFilters
           assignees={assigneeFilterOptions}
+          labels={labelFilterOptions}
           onAssigneeChange={setSelectedAssigneeId}
+          onLabelChange={setSelectedLabelId}
           selectedAssigneeId={selectedAssigneeId}
+          selectedLabelId={selectedLabelId}
         />
 
         {error ? <p className="rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p> : null}
@@ -530,7 +543,7 @@ export default function BoardPage() {
                   void handleRenameColumn(selectedColumn);
                 }}
                 onTaskClick={handleOpenTaskModal}
-                draggable={!selectedAssigneeId}
+                draggable={!selectedAssigneeId && !selectedLabelId}
                 tasks={filteredTasksByColumn[column.id] ?? []}
                 tasksError={taskErrorsByColumn[column.id]}
               />
@@ -557,7 +570,8 @@ export default function BoardPage() {
                 description: activeTask.description ?? null,
                 priority: activeTask.priority,
                 dueDate: activeTask.dueDate ?? null,
-                assignees: activeTask.assignees
+                assignees: activeTask.assignees,
+                labels: activeTask.labels
               }}
             />
           </div>

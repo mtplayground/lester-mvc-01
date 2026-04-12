@@ -79,7 +79,8 @@ export default function ColumnContainer({
                   description: task.description ?? null,
                   priority: task.priority,
                   dueDate: task.dueDate ?? null,
-                  assignees: task.assignees
+                  assignees: task.assignees,
+                  labels: task.labels
                 }}
                 draggable={draggable}
                 onClick={() => onTaskClick(task)}
