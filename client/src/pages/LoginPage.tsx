@@ -1,9 +1,12 @@
 import { Navigate } from 'react-router-dom';
 import AuthForm from '../components/auth/AuthForm';
-import { getAuthToken } from '../lib/api';
+import { useAuthStore } from '../stores/authStore';
 
 export default function LoginPage() {
-  if (getAuthToken()) {
+  const token = useAuthStore((state) => state.token);
+  const isInitializing = useAuthStore((state) => state.isInitializing);
+
+  if (!isInitializing && token) {
     return <Navigate replace to="/" />;
   }
 

@@ -2,7 +2,8 @@ import axios from 'axios';
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { z } from 'zod';
-import { api, setAuthToken } from '../../lib/api';
+import { api } from '../../lib/api';
+import { useAuthStore } from '../../stores/authStore';
 
 type AuthMode = 'login' | 'register';
 
@@ -35,6 +36,7 @@ const tokenSchema = z.object({
 
 export default function AuthForm({ mode }: AuthFormProps) {
   const navigate = useNavigate();
+  const loginWithToken = useAuthStore((state) => state.loginWithToken);
   const [values, setValues] = useState<FormValues>({
     email: '',
     password: '',
@@ -83,8 +85,13 @@ export default function AuthForm({ mode }: AuthFormProps) {
       const endpoint = isRegisterMode ? '/auth/register' : '/auth/login';
       const response = await api.post(endpoint, parsedPayload.data);
       const parsedResponse = tokenSchema.parse(response.data);
+      const didAuthenticate = await loginWithToken(parsedResponse.token);
 
-      setAuthToken(parsedResponse.token);
+      if (!didAuthenticate) {
+        setFormError('Authentication failed');
+        return;
+      }
+
       navigate('/', { replace: true });
     } catch (error: unknown) {
       if (axios.isAxiosError(error)) {
