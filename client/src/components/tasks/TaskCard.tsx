@@ -1,4 +1,6 @@
 import PriorityBadge from './PriorityBadge';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 interface TaskAssignee {
   id: string;
@@ -8,6 +10,7 @@ interface TaskAssignee {
 
 export interface TaskCardData {
   id: string;
+  columnId: string;
   title: string;
   priority: 'LOW' | 'MEDIUM' | 'HIGH';
   dueDate?: string | null;
@@ -16,6 +19,7 @@ export interface TaskCardData {
 
 interface TaskCardProps {
   task: TaskCardData;
+  draggable?: boolean;
 }
 
 function getAssigneeInitials(name: string): string {
@@ -46,12 +50,31 @@ function formatDueDate(value?: string | null): string | null {
   });
 }
 
-export default function TaskCard({ task }: TaskCardProps) {
+export default function TaskCard({ task, draggable = true }: TaskCardProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: task.id,
+    data: {
+      type: 'task',
+      columnId: task.columnId
+    },
+    disabled: !draggable
+  });
+
   const dueDateLabel = formatDueDate(task.dueDate);
   const assignees = task.assignees ?? [];
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition
+  };
 
   return (
-    <article className="space-y-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+    <article
+      className={`space-y-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm ${draggable ? 'cursor-grab active:cursor-grabbing touch-none' : ''} ${isDragging ? 'opacity-40' : ''}`}
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+    >
       <div className="flex items-start justify-between gap-2">
         <h4 className="line-clamp-2 text-sm font-medium text-slate-900">{task.title}</h4>
         <PriorityBadge priority={task.priority} />
