@@ -22,6 +22,7 @@ model User {
   updatedAt    DateTime @updatedAt @map("updated_at")
   boards       Board[]
   tasks        Task[]
+  taskAssignments TaskAssignment[]
 
   @@map("users")
 }
@@ -67,9 +68,22 @@ model Task {
 
   column  Column @relation(fields: [columnId], references: [id], onDelete: Cascade)
   creator User   @relation(fields: [createdBy], references: [id])
+  taskAssignments TaskAssignment[]
 
   @@index([columnId])
   @@index([createdBy])
   @@unique([columnId, position])
   @@map("tasks")
+}
+
+model TaskAssignment {
+  taskId String @map("task_id")
+  userId String @map("user_id")
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, userId])
+  @@index([userId])
+  @@map("task_assignments")
 }
