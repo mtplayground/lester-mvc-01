@@ -18,6 +18,7 @@ interface ColumnContainerProps {
   isLoadingTasks?: boolean;
   isCreatingTask?: boolean;
   isBusy?: boolean;
+  draggable?: boolean;
   onTaskClick: (task: BoardTask) => void;
   onCreateTask: (columnId: string, input: CreateTaskInput) => Promise<void>;
   onRename: (column: Column) => void;
@@ -31,6 +32,7 @@ export default function ColumnContainer({
   isLoadingTasks = false,
   isCreatingTask = false,
   isBusy = false,
+  draggable = true,
   onTaskClick,
   onCreateTask,
   onRename,
@@ -79,6 +81,7 @@ export default function ColumnContainer({
                   dueDate: task.dueDate ?? null,
                   assignees: task.assignees
                 }}
+                draggable={draggable}
                 onClick={() => onTaskClick(task)}
               />
             ))}
