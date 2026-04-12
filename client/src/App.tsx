@@ -7,6 +7,7 @@ import DashboardPage from './pages/DashboardPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import { useAuthStore } from './stores/authStore';
+import { ToastProvider } from './components/ui/Toast';
 
 export default function App() {
   const initializeAuth = useAuthStore((state) => state.initializeAuth);
@@ -16,25 +17,27 @@ export default function App() {
   }, [initializeAuth]);
 
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
+    <ToastProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
 
-        <Route
-          element={
-            <ProtectedRoute>
-              <AppLayout />
-            </ProtectedRoute>
-          }
-        >
-          <Route index element={<DashboardPage />} />
-          <Route path="boards" element={<DashboardPage />} />
-          <Route path="boards/:boardId" element={<BoardPage />} />
-        </Route>
+          <Route
+            element={
+              <ProtectedRoute>
+                <AppLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<DashboardPage />} />
+            <Route path="boards" element={<DashboardPage />} />
+            <Route path="boards/:boardId" element={<BoardPage />} />
+          </Route>
 
-        <Route path="*" element={<Navigate replace to="/" />} />
-      </Routes>
-    </BrowserRouter>
+          <Route path="*" element={<Navigate replace to="/" />} />
+        </Routes>
+      </BrowserRouter>
+    </ToastProvider>
   );
 }

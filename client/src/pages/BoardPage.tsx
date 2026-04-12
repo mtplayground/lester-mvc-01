@@ -9,6 +9,8 @@ import LabelManager, { type BoardLabel } from '../components/labels/LabelManager
 import ColumnContainer from '../components/boards/ColumnContainer';
 import TaskCard from '../components/tasks/TaskCard';
 import TaskDetailModal from '../components/tasks/TaskDetailModal';
+import Skeleton from '../components/ui/Skeleton';
+import { useToast } from '../components/ui/Toast';
 import type { TaskEditValues } from '../components/tasks/TaskEditForm';
 import { type BoardTask, type TasksByColumn, useDragAndDrop } from '../hooks/useDragAndDrop';
 import { api } from '../lib/api';
@@ -91,8 +93,17 @@ function toBoardTask(task: z.infer<typeof taskSchema>): BoardTask {
   };
 }
 
+function getApiErrorMessage(error: unknown, fallback: string): string {
+  if (axios.isAxiosError(error) && typeof error.response?.data?.message === 'string') {
+    return error.response.data.message;
+  }
+
+  return fallback;
+}
+
 export default function BoardPage() {
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const { boardId } = useParams();
   const [board, setBoard] = useState<Board | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -264,15 +275,27 @@ export default function BoardPage() {
       const currentBoard = boards.find((candidate) => candidate.id === boardId);
 
       if (!currentBoard) {
-        setError('Board not found.');
+        const message = 'Board not found.';
+        setError(message);
         setBoard(null);
+        showToast({
+          type: 'error',
+          title: 'Board not found',
+          description: message
+        });
         return;
       }
 
       setBoard(currentBoard);
       await Promise.all([loadTasksForColumns(currentBoard.columns), loadLabels(currentBoard.id)]);
-    } catch {
-      setError('Failed to load board. Please refresh and try again.');
+    } catch (caughtError) {
+      const message = getApiErrorMessage(caughtError, 'Failed to load board. Please refresh and try again.');
+      setError(message);
+      showToast({
+        type: 'error',
+        title: 'Failed to load board',
+        description: message
+      });
     } finally {
       setIsLoading(false);
     }
@@ -303,8 +326,19 @@ export default function BoardPage() {
       setIsAddingColumn(true);
       await api.post('/columns', { boardId: board.id, name: trimmedName });
       await fetchBoard();
-    } catch {
-      setError('Failed to create column.');
+      showToast({
+        type: 'success',
+        title: 'Column created',
+        description: `"${trimmedName}" was added`
+      });
+    } catch (caughtError) {
+      const message = getApiErrorMessage(caughtError, 'Failed to create column.');
+      setError(message);
+      showToast({
+        type: 'error',
+        title: 'Column creation failed',
+        description: message
+      });
     } finally {
       setIsAddingColumn(false);
     }
@@ -327,8 +361,19 @@ export default function BoardPage() {
       setBusyColumnId(column.id);
       await api.put(`/columns/${column.id}`, { name: trimmedName });
       await fetchBoard();
-    } catch {
-      setError('Failed to rename column.');
+      showToast({
+        type: 'success',
+        title: 'Column renamed',
+        description: `Column is now "${trimmedName}"`
+      });
+    } catch (caughtError) {
+      const message = getApiErrorMessage(caughtError, 'Failed to rename column.');
+      setError(message);
+      showToast({
+        type: 'error',
+        title: 'Rename failed',
+        description: message
+      });
     } finally {
       setBusyColumnId(null);
     }
@@ -345,12 +390,19 @@ export default function BoardPage() {
       setBusyColumnId(column.id);
       await api.delete(`/columns/${column.id}`);
       await fetchBoard();
+      showToast({
+        type: 'success',
+        title: 'Column deleted',
+        description: `"${column.name}" removed`
+      });
     } catch (caughtError) {
-      if (axios.isAxiosError(caughtError) && typeof caughtError.response?.data?.message === 'string') {
-        setError(caughtError.response.data.message);
-      } else {
-        setError('Failed to delete column.');
-      }
+      const message = getApiErrorMessage(caughtError, 'Failed to delete column.');
+      setError(message);
+      showToast({
+        type: 'error',
+        title: 'Delete failed',
+        description: message
+      });
     } finally {
       setBusyColumnId(null);
     }
@@ -375,12 +427,19 @@ export default function BoardPage() {
         ...previous,
         [columnId]: sortTasks([...(previous[columnId] ?? []), createdTask])
       }));
+      showToast({
+        type: 'success',
+        title: 'Task created',
+        description: `"${createdTask.title}" added`
+      });
     } catch (caughtError) {
-      if (axios.isAxiosError(caughtError) && typeof caughtError.response?.data?.message === 'string') {
-        setColumnTaskError(columnId, caughtError.response.data.message);
-      } else {
-        setColumnTaskError(columnId, 'Failed to create task.');
-      }
+      const message = getApiErrorMessage(caughtError, 'Failed to create task.');
+      setColumnTaskError(columnId, message);
+      showToast({
+        type: 'error',
+        title: 'Task creation failed',
+        description: message
+      });
 
       throw caughtError;
     } finally {
@@ -418,12 +477,19 @@ export default function BoardPage() {
 
       const updatedTask = toBoardTask(taskSchema.parse(response.data));
       applyTaskUpdate(updatedTask);
+      showToast({
+        type: 'success',
+        title: 'Task updated',
+        description: `"${updatedTask.title}" saved`
+      });
     } catch (caughtError) {
-      if (axios.isAxiosError(caughtError) && typeof caughtError.response?.data?.message === 'string') {
-        setTaskModalError(caughtError.response.data.message);
-      } else {
-        setTaskModalError('Failed to save task details.');
-      }
+      const message = getApiErrorMessage(caughtError, 'Failed to save task details.');
+      setTaskModalError(message);
+      showToast({
+        type: 'error',
+        title: 'Task update failed',
+        description: message
+      });
 
       throw caughtError;
     } finally {
@@ -460,11 +526,34 @@ export default function BoardPage() {
     persistReorder,
     onError: (message) => {
       setError(message);
+      showToast({
+        type: 'error',
+        title: 'Reorder failed',
+        description: message
+      });
     }
   });
 
   if (isLoading) {
-    return <p className="text-sm text-slate-600">Loading board...</p>;
+    return (
+      <section className="space-y-5">
+        <div className="space-y-2">
+          <Skeleton className="h-7 w-56" />
+          <Skeleton className="h-4 w-80 max-w-full" />
+        </div>
+        <Skeleton className="h-12 w-full rounded-xl" />
+        <div className="flex gap-4 overflow-hidden">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <div className="w-72 space-y-3 rounded-xl border border-slate-200 bg-white p-4" key={index}>
+              <Skeleton className="h-5 w-2/3" />
+              <Skeleton className="h-20 w-full" />
+              <Skeleton className="h-20 w-full" />
+              <Skeleton className="h-9 w-full" />
+            </div>
+          ))}
+        </div>
+      </section>
+    );
   }
 
   if (!board) {

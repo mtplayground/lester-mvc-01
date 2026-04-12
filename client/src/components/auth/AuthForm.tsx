@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import { api } from '../../lib/api';
 import { useAuthStore } from '../../stores/authStore';
+import { useToast } from '../ui/Toast';
 
 type AuthMode = 'login' | 'register';
 
@@ -36,6 +37,7 @@ const tokenSchema = z.object({
 
 export default function AuthForm({ mode }: AuthFormProps) {
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const loginWithToken = useAuthStore((state) => state.loginWithToken);
   const [values, setValues] = useState<FormValues>({
     email: '',
@@ -89,16 +91,36 @@ export default function AuthForm({ mode }: AuthFormProps) {
 
       if (!didAuthenticate) {
         setFormError('Authentication failed');
+        showToast({
+          type: 'error',
+          title: 'Authentication failed',
+          description: 'Please check your credentials and try again.'
+        });
         return;
       }
 
+      showToast({
+        type: 'success',
+        title: isRegisterMode ? 'Account created' : 'Signed in',
+        description: isRegisterMode ? 'Welcome to Lester MVC' : 'Welcome back'
+      });
       navigate('/', { replace: true });
     } catch (error: unknown) {
       if (axios.isAxiosError(error)) {
         const message = typeof error.response?.data?.message === 'string' ? error.response.data.message : 'Authentication failed';
         setFormError(message);
+        showToast({
+          type: 'error',
+          title: 'Authentication failed',
+          description: message
+        });
       } else {
         setFormError('Authentication failed');
+        showToast({
+          type: 'error',
+          title: 'Authentication failed',
+          description: 'Please try again.'
+        });
       }
     } finally {
       setIsSubmitting(false);

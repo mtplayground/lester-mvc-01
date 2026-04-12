@@ -4,6 +4,7 @@ import CreateTaskForm, { type CreateTaskInput } from '../tasks/CreateTaskForm';
 import TaskCard from '../tasks/TaskCard';
 import type { BoardTask } from '../../hooks/useDragAndDrop';
 import ColumnHeader from './ColumnHeader';
+import Skeleton from '../ui/Skeleton';
 
 interface Column {
   id: string;
@@ -62,8 +63,10 @@ export default function ColumnContainer({
         ref={setNodeRef}
       >
         {isLoadingTasks ? (
-          <div className="flex min-h-[120px] items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 p-4 text-center text-xs text-slate-500">
-            Loading tasks...
+          <div className="space-y-2 rounded-lg border border-dashed border-slate-200 bg-slate-50 p-3">
+            <Skeleton className="h-14 w-full" />
+            <Skeleton className="h-14 w-full" />
+            <Skeleton className="h-14 w-full" />
           </div>
         ) : null}
 
