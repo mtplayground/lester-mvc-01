@@ -1,0 +1,16 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const taskController_1 = require("../controllers/taskController");
+const auth_1 = require("../middleware/auth");
+const validators_1 = require("../validators");
+const task_1 = require("../validators/task");
+const taskRoutes = (0, express_1.Router)();
+taskRoutes.use(auth_1.requireAuth);
+taskRoutes.get('/column/:columnId', (0, validators_1.validateRequest)({ params: task_1.TaskColumnParamsSchema }), taskController_1.getTasksByColumn);
+taskRoutes.get('/:id', (0, validators_1.validateRequest)({ params: task_1.TaskIdParamsSchema }), taskController_1.getTask);
+taskRoutes.post('/', (0, validators_1.validateRequest)({ body: task_1.CreateTaskBodySchema }), taskController_1.postTask);
+taskRoutes.put('/:id', (0, validators_1.validateRequest)({ params: task_1.TaskIdParamsSchema, body: task_1.UpdateTaskBodySchema }), taskController_1.putTask);
+taskRoutes.delete('/:id', (0, validators_1.validateRequest)({ params: task_1.TaskIdParamsSchema }), taskController_1.deleteTaskById);
+taskRoutes.patch('/reorder', (0, validators_1.validateRequest)({ body: task_1.BulkReorderTasksBodySchema }), taskController_1.patchTaskReorder);
+exports.default = taskRoutes;

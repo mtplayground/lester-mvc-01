@@ -1,0 +1,14 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const columnController_1 = require("../controllers/columnController");
+const auth_1 = require("../middleware/auth");
+const validators_1 = require("../validators");
+const column_1 = require("../validators/column");
+const columnRoutes = (0, express_1.Router)();
+columnRoutes.use(auth_1.requireAuth);
+columnRoutes.post('/', (0, validators_1.validateRequest)({ body: column_1.CreateColumnBodySchema }), columnController_1.postColumn);
+columnRoutes.put('/:id', (0, validators_1.validateRequest)({ params: column_1.ColumnIdParamsSchema, body: column_1.UpdateColumnBodySchema }), columnController_1.putColumn);
+columnRoutes.patch('/:id/reorder', (0, validators_1.validateRequest)({ params: column_1.ColumnIdParamsSchema, body: column_1.ReorderColumnBodySchema }), columnController_1.patchColumnOrder);
+columnRoutes.delete('/:id', (0, validators_1.validateRequest)({ params: column_1.ColumnIdParamsSchema }), columnController_1.removeColumn);
+exports.default = columnRoutes;

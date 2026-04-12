@@ -1,0 +1,16 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const labelController_1 = require("../controllers/labelController");
+const auth_1 = require("../middleware/auth");
+const validators_1 = require("../validators");
+const label_1 = require("../validators/label");
+const labelRoutes = (0, express_1.Router)();
+labelRoutes.use(auth_1.requireAuth);
+labelRoutes.get('/', (0, validators_1.validateRequest)({ query: label_1.LabelBoardQuerySchema }), labelController_1.getLabels);
+labelRoutes.post('/', (0, validators_1.validateRequest)({ body: label_1.CreateLabelBodySchema }), labelController_1.postLabel);
+labelRoutes.post('/tasks', (0, validators_1.validateRequest)({ body: label_1.LabelTaskLinkBodySchema }), labelController_1.postTaskLabel);
+labelRoutes.delete('/tasks', (0, validators_1.validateRequest)({ body: label_1.LabelTaskLinkBodySchema }), labelController_1.deleteTaskLabel);
+labelRoutes.put('/:id', (0, validators_1.validateRequest)({ params: label_1.LabelIdParamsSchema, body: label_1.UpdateLabelBodySchema }), labelController_1.putLabel);
+labelRoutes.delete('/:id', (0, validators_1.validateRequest)({ params: label_1.LabelIdParamsSchema }), labelController_1.removeLabel);
+exports.default = labelRoutes;
