@@ -1,20 +1,8 @@
 import 'dotenv/config';
-import express from 'express';
-import { prisma, verifyDatabaseConnection } from './lib/prisma';
+import app from './app';
+import { verifyDatabaseConnection } from './lib/prisma';
 
-const app = express();
 const port = Number(process.env.PORT ?? 3000);
-
-app.use(express.json());
-
-app.get('/health', async (_req, res) => {
-  try {
-    await prisma.$queryRaw`SELECT 1`;
-    res.status(200).json({ status: 'ok' });
-  } catch (error) {
-    res.status(503).json({ status: 'error', message: 'database unavailable', error });
-  }
-});
 
 async function startServer(): Promise<void> {
   try {
