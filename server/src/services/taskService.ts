@@ -22,6 +22,17 @@ const taskWithAssigneesInclude = {
         }
       }
     }
+  },
+  taskLabels: {
+    select: {
+      label: {
+        select: {
+          id: true,
+          name: true,
+          color: true
+        }
+      }
+    }
   }
 } as const;
 
@@ -30,13 +41,18 @@ type TaskWithAssigneesRecord = Prisma.TaskGetPayload<{
 }>;
 
 function mapTaskWithAssignees(task: TaskWithAssigneesRecord) {
-  const { taskAssignments, ...taskData } = task;
+  const { taskAssignments, taskLabels, ...taskData } = task;
 
   return {
     ...taskData,
     assignees: taskAssignments.map((assignment) => ({
       id: assignment.user.id,
       name: assignment.user.name
+    })),
+    labels: taskLabels.map((taskLabel) => ({
+      id: taskLabel.label.id,
+      name: taskLabel.label.name,
+      color: taskLabel.label.color
     }))
   };
 }
