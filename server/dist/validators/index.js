@@ -18,6 +18,7 @@ __exportStar(require("./auth"), exports);
 __exportStar(require("./assignment"), exports);
 __exportStar(require("./board"), exports);
 __exportStar(require("./column"), exports);
+__exportStar(require("./comment"), exports);
 __exportStar(require("./healthSchemas"), exports);
 __exportStar(require("./label"), exports);
 __exportStar(require("./task"), exports);
