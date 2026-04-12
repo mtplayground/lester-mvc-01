@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from 'express';
+import { isRequestValidationError } from '../validators';
 
 export function notFoundHandler(_req: Request, res: Response): void {
   res.status(404).json({
@@ -7,6 +8,14 @@ export function notFoundHandler(_req: Request, res: Response): void {
 }
 
 export function errorHandler(error: unknown, _req: Request, res: Response, _next: NextFunction): void {
+  if (isRequestValidationError(error)) {
+    res.status(400).json({
+      message: error.message,
+      issues: error.issues
+    });
+    return;
+  }
+
   const message = error instanceof Error ? error.message : 'Internal server error';
 
   res.status(500).json({
