@@ -8,9 +8,9 @@ datasource db {
 }
 
 model User {
-  id           String  @id @default(cuid())
-  email        String  @unique
-  passwordHash String  @map("password_hash")
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
   name         String
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
@@ -36,7 +36,7 @@ model Column {
   id       String @id @default(cuid())
   boardId  String @map("board_id")
   name     String
-  position Int
+  position Float
 
   board Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
 
