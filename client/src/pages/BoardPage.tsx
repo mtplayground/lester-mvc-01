@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { z } from 'zod';
 import BoardFilters from '../components/boards/BoardFilters';
+import LabelManager, { type BoardLabel } from '../components/labels/LabelManager';
 import ColumnContainer from '../components/boards/ColumnContainer';
 import TaskCard from '../components/tasks/TaskCard';
 import TaskDetailModal from '../components/tasks/TaskDetailModal';
@@ -46,7 +47,18 @@ const taskSchema = z
     priority: z.enum(['LOW', 'MEDIUM', 'HIGH']),
     dueDate: z.string().datetime().nullable().optional(),
     position: z.number(),
-    assignees: z.array(taskAssigneeSchema).optional()
+    assignees: z.array(taskAssigneeSchema).optional(),
+    labels: z
+      .array(
+        z
+          .object({
+            id: z.string().min(1),
+            name: z.string().min(1),
+            color: z.string().min(1)
+          })
+          .passthrough()
+      )
+      .optional()
   })
   .passthrough();
 
@@ -74,7 +86,8 @@ function toBoardTask(task: z.infer<typeof taskSchema>): BoardTask {
     priority: task.priority,
     dueDate: task.dueDate ?? null,
     position: task.position,
-    assignees: task.assignees
+    assignees: task.assignees,
+    labels: task.labels
   };
 }
 
@@ -90,6 +103,7 @@ export default function BoardPage() {
   const [tasksByColumn, setTasksByColumn] = useState<TasksByColumn>({});
   const [taskLoadingByColumn, setTaskLoadingByColumn] = useState<Record<string, boolean>>({});
   const [taskErrorsByColumn, setTaskErrorsByColumn] = useState<Record<string, string | null>>({});
+  const [boardLabels, setBoardLabels] = useState<BoardLabel[]>([]);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [selectedAssigneeId, setSelectedAssigneeId] = useState('');
   const [isTaskSaving, setIsTaskSaving] = useState(false);
@@ -204,6 +218,26 @@ export default function BoardPage() {
     );
   }
 
+  async function loadLabels(boardIdValue: string): Promise<void> {
+    try {
+      const response = await api.get('/labels', { params: { boardId: boardIdValue } });
+      const parsedLabels = z.array(
+        z
+          .object({
+            id: z.string().min(1),
+            boardId: z.string().min(1),
+            name: z.string().min(1),
+            color: z.string().min(1)
+          })
+          .passthrough()
+      ).parse(response.data);
+
+      setBoardLabels(parsedLabels);
+    } catch {
+      setBoardLabels([]);
+    }
+  }
+
   async function fetchBoard(): Promise<void> {
     if (!boardId) {
       setError('Board not found.');
@@ -226,7 +260,7 @@ export default function BoardPage() {
       }
 
       setBoard(currentBoard);
-      await loadTasksForColumns(currentBoard.columns);
+      await Promise.all([loadTasksForColumns(currentBoard.columns), loadLabels(currentBoard.id)]);
     } catch {
       setError('Failed to load board. Please refresh and try again.');
     } finally {
@@ -452,16 +486,23 @@ export default function BoardPage() {
             <h2 className="text-2xl font-semibold tracking-tight text-slate-900">{board.name}</h2>
             <p className="text-sm text-slate-600">Manage columns and keep board structure organized.</p>
           </div>
-          <button
-            className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500"
-            disabled={isAddingColumn}
-            onClick={() => {
-              void handleAddColumn();
-            }}
-            type="button"
-          >
-            {isAddingColumn ? 'Adding...' : 'Add Column'}
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <LabelManager
+              boardId={board.id}
+              labels={boardLabels}
+              onLabelsChange={setBoardLabels}
+            />
+            <button
+              className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500"
+              disabled={isAddingColumn}
+              onClick={() => {
+                void handleAddColumn();
+              }}
+              type="button"
+            >
+              {isAddingColumn ? 'Adding...' : 'Add Column'}
+            </button>
+          </div>
         </div>
 
         <BoardFilters
@@ -524,6 +565,7 @@ export default function BoardPage() {
       </DragOverlay>
 
       <TaskDetailModal
+        availableLabels={boardLabels}
         isOpen={Boolean(selectedTask)}
         isSaving={isTaskSaving}
         onClose={handleCloseTaskModal}
