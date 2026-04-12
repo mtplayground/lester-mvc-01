@@ -4,6 +4,7 @@ import axios from 'axios';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { z } from 'zod';
+import BoardFilters from '../components/boards/BoardFilters';
 import ColumnContainer from '../components/boards/ColumnContainer';
 import TaskCard from '../components/tasks/TaskCard';
 import TaskDetailModal from '../components/tasks/TaskDetailModal';
@@ -90,6 +91,7 @@ export default function BoardPage() {
   const [taskLoadingByColumn, setTaskLoadingByColumn] = useState<Record<string, boolean>>({});
   const [taskErrorsByColumn, setTaskErrorsByColumn] = useState<Record<string, string | null>>({});
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [selectedAssigneeId, setSelectedAssigneeId] = useState('');
   const [isTaskSaving, setIsTaskSaving] = useState(false);
   const [taskModalError, setTaskModalError] = useState<string | null>(null);
 
@@ -124,6 +126,35 @@ export default function BoardPage() {
 
     return null;
   }, [selectedTaskId, tasksByColumn]);
+
+  const assigneeFilterOptions = useMemo(() => {
+    const uniqueAssignees = new Map<string, { id: string; name: string }>();
+
+    for (const tasks of Object.values(tasksByColumn)) {
+      for (const task of tasks) {
+        for (const assignee of task.assignees ?? []) {
+          if (!uniqueAssignees.has(assignee.id)) {
+            uniqueAssignees.set(assignee.id, { id: assignee.id, name: assignee.name });
+          }
+        }
+      }
+    }
+
+    return Array.from(uniqueAssignees.values()).sort((left, right) => left.name.localeCompare(right.name));
+  }, [tasksByColumn]);
+
+  const filteredTasksByColumn = useMemo(() => {
+    if (!selectedAssigneeId) {
+      return tasksByColumn;
+    }
+
+    return Object.fromEntries(
+      Object.entries(tasksByColumn).map(([columnId, tasks]) => [
+        columnId,
+        tasks.filter((task) => (task.assignees ?? []).some((assignee) => assignee.id === selectedAssigneeId))
+      ])
+    );
+  }, [selectedAssigneeId, tasksByColumn]);
 
   function setColumnTaskError(columnId: string, message: string | null): void {
     setTaskErrorsByColumn((previous) => ({
@@ -433,6 +464,12 @@ export default function BoardPage() {
           </button>
         </div>
 
+        <BoardFilters
+          assignees={assigneeFilterOptions}
+          onAssigneeChange={setSelectedAssigneeId}
+          selectedAssigneeId={selectedAssigneeId}
+        />
+
         {error ? <p className="rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p> : null}
 
         <div className="overflow-x-auto pb-2">
@@ -452,7 +489,8 @@ export default function BoardPage() {
                   void handleRenameColumn(selectedColumn);
                 }}
                 onTaskClick={handleOpenTaskModal}
-                tasks={tasksByColumn[column.id] ?? []}
+                draggable={!selectedAssigneeId}
+                tasks={filteredTasksByColumn[column.id] ?? []}
                 tasksError={taskErrorsByColumn[column.id]}
               />
             ))}
