@@ -4,7 +4,9 @@ import { z } from 'zod';
 import { api } from '../../lib/api';
 import type { BoardLabel } from '../labels/LabelManager';
 import LabelPicker from '../labels/LabelPicker';
+import ActivityFeed from './ActivityFeed';
 import AssigneePicker, { type AssigneePickerUser } from './AssigneePicker';
+import CommentSection from './CommentSection';
 import PriorityBadge from './PriorityBadge';
 import TaskEditForm, { type TaskEditValues } from './TaskEditForm';
 
@@ -126,6 +128,7 @@ export default function TaskDetailModal({
   onSave,
   onTaskUpdate
 }: TaskDetailModalProps) {
+  const [activeTab, setActiveTab] = useState<'comments' | 'activity'>('comments');
   const [users, setUsers] = useState<AssigneePickerUser[]>([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
   const [isMutatingUserId, setIsMutatingUserId] = useState<string | null>(null);
@@ -174,6 +177,14 @@ export default function TaskDetailModal({
     }
 
     void loadAssignableUsers(task.id);
+  }, [isOpen, task?.id]);
+
+  useEffect(() => {
+    if (!isOpen || !task) {
+      return;
+    }
+
+    setActiveTab('comments');
   }, [isOpen, task?.id]);
 
   if (!isOpen || !task) {
@@ -286,6 +297,47 @@ export default function TaskDetailModal({
           onCancel={onClose}
           onSave={onSave}
         />
+
+        <section className="mt-5 space-y-3 border-t border-slate-200 pt-4">
+          <div className="flex items-center gap-2">
+            <button
+              className={`rounded-md px-3 py-1.5 text-xs font-semibold transition ${
+                activeTab === 'comments'
+                  ? 'bg-slate-900 text-white'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              }`}
+              onClick={() => setActiveTab('comments')}
+              type="button"
+            >
+              Comments
+            </button>
+            <button
+              className={`rounded-md px-3 py-1.5 text-xs font-semibold transition ${
+                activeTab === 'activity'
+                  ? 'bg-slate-900 text-white'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              }`}
+              onClick={() => setActiveTab('activity')}
+              type="button"
+            >
+              Activity
+            </button>
+          </div>
+
+          {activeTab === 'comments' ? (
+            <CommentSection
+              isActive={activeTab === 'comments'}
+              taskId={task.id}
+            />
+          ) : null}
+
+          {activeTab === 'activity' ? (
+            <ActivityFeed
+              isActive={activeTab === 'activity'}
+              taskId={task.id}
+            />
+          ) : null}
+        </section>
       </section>
     </div>
   );
