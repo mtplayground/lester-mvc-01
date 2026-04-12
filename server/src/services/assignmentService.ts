@@ -1,4 +1,5 @@
 import { prisma } from '../lib/prisma';
+import { logTaskAssigned } from './activityService';
 import { getTaskWithAssigneesById, TaskError } from './taskService';
 
 export class AssignmentError extends Error {
@@ -79,19 +80,28 @@ export async function assignUserToTask(ownerId: string, taskId: string, assignee
     throw new AssignmentError('User not found', 404);
   }
 
-  await prisma.taskAssignment.upsert({
+  const existingAssignment = await prisma.taskAssignment.findUnique({
     where: {
       taskId_userId: {
         taskId,
         userId: assigneeUserId
       }
     },
-    create: {
-      taskId,
-      userId: assigneeUserId
-    },
-    update: {}
+    select: {
+      taskId: true
+    }
   });
+
+  if (!existingAssignment) {
+    await prisma.taskAssignment.create({
+      data: {
+        taskId,
+        userId: assigneeUserId
+      }
+    });
+
+    await logTaskAssigned(ownerId, taskId, assigneeUserId);
+  }
 
   try {
     return await getTaskWithAssigneesById(taskId);

@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
+import { logTaskCreated, logTaskMoved } from './activityService';
 import type { BulkReorderTasksBody, CreateTaskBody, UpdateTaskBody } from '../validators/task';
 
 export class TaskError extends Error {
@@ -146,6 +147,8 @@ export async function createTask(userId: string, input: CreateTaskBody) {
     include: taskWithAssigneesInclude
   });
 
+  await logTaskCreated(userId, task.id);
+
   return mapTaskWithAssignees(task);
 }
 
@@ -167,6 +170,15 @@ export async function updateTask(userId: string, taskId: string, input: UpdateTa
       ...(input.position !== undefined ? { position: input.position } : {})
     },
     include: taskWithAssigneesInclude
+  });
+
+  await logTaskMoved({
+    taskId: task.id,
+    userId,
+    fromColumnId: existingTask.columnId,
+    toColumnId: task.columnId,
+    fromPosition: existingTask.position,
+    toPosition: task.position
   });
 
   return mapTaskWithAssignees(task);
@@ -197,7 +209,9 @@ export async function bulkReorderTasks(userId: string, input: BulkReorderTasksBo
       }
     },
     select: {
-      id: true
+      id: true,
+      columnId: true,
+      position: true
     }
   });
 
@@ -215,6 +229,27 @@ export async function bulkReorderTasks(userId: string, input: BulkReorderTasksBo
         }
       })
     )
+  );
+
+  const taskBeforeById = new Map(ownedTasks.map((task) => [task.id, task]));
+
+  await Promise.all(
+    input.tasks.map(async (taskUpdate) => {
+      const previousTask = taskBeforeById.get(taskUpdate.id);
+
+      if (!previousTask) {
+        return;
+      }
+
+      await logTaskMoved({
+        taskId: taskUpdate.id,
+        userId,
+        fromColumnId: previousTask.columnId,
+        toColumnId: taskUpdate.columnId,
+        fromPosition: previousTask.position,
+        toPosition: taskUpdate.position
+      });
+    })
   );
 
   const reorderedTasks = await prisma.task.findMany({
