@@ -342,23 +342,7 @@ export default function BoardPage() {
       });
 
       const updatedTask = toBoardTask(taskSchema.parse(response.data));
-
-      setTasksByColumn((previous) => {
-        const sourceColumnId = Object.keys(previous).find((columnId) =>
-          (previous[columnId] ?? []).some((task) => task.id === updatedTask.id)
-        );
-
-        if (!sourceColumnId) {
-          return previous;
-        }
-
-        return {
-          ...previous,
-          [sourceColumnId]: sortTasks(
-            (previous[sourceColumnId] ?? []).map((task) => (task.id === updatedTask.id ? { ...task, ...updatedTask } : task))
-          )
-        };
-      });
+      applyTaskUpdate(updatedTask);
     } catch (caughtError) {
       if (axios.isAxiosError(caughtError) && typeof caughtError.response?.data?.message === 'string') {
         setTaskModalError(caughtError.response.data.message);
@@ -370,6 +354,25 @@ export default function BoardPage() {
     } finally {
       setIsTaskSaving(false);
     }
+  }
+
+  function applyTaskUpdate(updatedTask: BoardTask): void {
+    setTasksByColumn((previous) => {
+      const sourceColumnId = Object.keys(previous).find((columnId) =>
+        (previous[columnId] ?? []).some((task) => task.id === updatedTask.id)
+      );
+
+      if (!sourceColumnId) {
+        return previous;
+      }
+
+      return {
+        ...previous,
+        [sourceColumnId]: sortTasks(
+          (previous[sourceColumnId] ?? []).map((task) => (task.id === updatedTask.id ? { ...task, ...updatedTask } : task))
+        )
+      };
+    });
   }
 
   async function persistReorder(tasks: TaskReorderInput[]): Promise<void> {
@@ -487,6 +490,7 @@ export default function BoardPage() {
         isSaving={isTaskSaving}
         onClose={handleCloseTaskModal}
         onSave={handleSaveTaskDetails}
+        onTaskUpdate={applyTaskUpdate}
         saveError={taskModalError}
         task={selectedTask}
       />

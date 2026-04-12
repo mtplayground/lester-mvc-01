@@ -64,6 +64,7 @@ export default function TaskCard({ task, draggable = true, onClick }: TaskCardPr
 
   const dueDateLabel = formatDueDate(task.dueDate);
   const assignees = task.assignees ?? [];
+  const assigneeTooltip = assignees.map((assignee) => assignee.name).join(', ');
   const style = {
     transform: CSS.Transform.toString(transform),
     transition
@@ -91,7 +92,7 @@ export default function TaskCard({ task, draggable = true, onClick }: TaskCardPr
         {dueDateLabel ? <p className="text-xs text-slate-600">Due {dueDateLabel}</p> : <p className="text-xs text-slate-400">No due date</p>}
 
         {assignees.length > 0 ? (
-          <div className="flex items-center -space-x-2">
+          <div className="flex items-center -space-x-2" title={assigneeTooltip}>
             {assignees.slice(0, 3).map((assignee) => (
               <div
                 className="flex h-7 w-7 items-center justify-center overflow-hidden rounded-full border-2 border-white bg-slate-200 text-[10px] font-semibold text-slate-700"
