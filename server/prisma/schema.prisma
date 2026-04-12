@@ -7,6 +7,12 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -15,6 +21,7 @@ model User {
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
   boards       Board[]
+  tasks        Task[]
 
   @@map("users")
 }
@@ -38,9 +45,31 @@ model Column {
   name     String
   position Float
 
-  board Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  board Board   @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  tasks Task[]
 
   @@index([boardId])
   @@unique([boardId, position])
   @@map("columns")
+}
+
+model Task {
+  id          String       @id @default(cuid())
+  columnId    String       @map("column_id")
+  title       String
+  description String?
+  dueDate     DateTime?    @map("due_date")
+  priority    TaskPriority @default(MEDIUM)
+  position    Float
+  createdBy   String       @map("created_by")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  column  Column @relation(fields: [columnId], references: [id], onDelete: Cascade)
+  creator User   @relation(fields: [createdBy], references: [id])
+
+  @@index([columnId])
+  @@index([createdBy])
+  @@unique([columnId, position])
+  @@map("tasks")
 }
