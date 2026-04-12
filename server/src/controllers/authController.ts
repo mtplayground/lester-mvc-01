@@ -29,3 +29,12 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
     next(error);
   }
 }
+
+export async function getMe(req: Request, res: Response): Promise<void> {
+  if (!req.authUser) {
+    res.status(401).json({ message: 'Unauthorized' });
+    return;
+  }
+
+  res.status(200).json(req.authUser);
+}
