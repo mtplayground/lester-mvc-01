@@ -1,0 +1,89 @@
+# Lester MVC Architecture Plan (Issues #1-#34)
+
+## 1) Monorepo Structure and Module Organization
+
+- `apps/web` (Vite + React + TypeScript)
+  - `src/pages` route-level pages (auth, dashboard, board)
+  - `src/components` reusable UI (cards, modals, filters, forms)
+  - `src/features/*` feature modules: auth, boards, tasks, comments, labels
+  - `src/context` auth/session and app-wide providers
+  - `src/lib` API client, query helpers, utilities
+  - `src/types` frontend-only view models (server types imported from shared)
+- `apps/api` (Express + TypeScript)
+  - `src/server.ts` app bootstrap
+  - `src/app.ts` express app config
+  - `src/config` env and app config
+  - `src/middleware` auth, error handling, request validation
+  - `src/modules/*` MVC-ish per-domain modules:
+    - `controller.ts`, `service.ts`, `repository.ts`, `routes.ts`, `schema.ts`
+  - `src/lib` jwt, logger, response helpers
+  - `src/tests` API/integration tests
+- `packages/shared`
+  - `src/schemas` Zod request/response schemas used by API and web
+  - `src/contracts` typed API DTOs + route contract map
+  - `src/client` typed fetch wrapper for web
+  - `src/constants` shared enums/status keys
+- `packages/database`
+  - `prisma/schema.prisma`
+  - `prisma/migrations/*`
+  - `src/client.ts` prisma client export
+
+## 2) Data Model Evolution
+
+- #6 `User`
+- #11 `Board`, `Column` (board ownership + column ordering)
+- #16 `Task` (belongs to column, ordering/index)
+- #21 `Assignment` (task-user many-to-many)
+- #24 `Label`, `TaskLabel` (many-to-many)
+- #27 `Comment`, `Activity`
+
+Design defaults:
+- Use UUID primary keys.
+- Add `createdAt`, `updatedAt` to all mutable entities.
+- Add positional/order fields for columns/tasks to support drag-and-drop.
+- Favor soft-deletable audit-friendly approach only if needed later; start with hard delete + activity logs.
+
+## 3) Cross-Cutting Design Decisions
+
+- Validation: Zod at API boundaries; shared schemas from `packages/shared`.
+- Auth: JWT access token (short-lived), middleware-protected routes, `/me` for session bootstrap.
+- API conventions: RESTful routes under `/api/v1`, consistent error envelope, typed success envelope.
+- Backend pattern: Controller (HTTP) -> Service (business rules) -> Repository (Prisma queries).
+- Frontend data fetching: React Query (or equivalent) for caching + invalidation by feature key.
+- Error/loading UX: standardized page-state and component-state patterns (#33).
+- Testing:
+  - API integration tests with test DB + seeded fixtures (#31).
+  - Frontend tests for pages/components + critical interactions (#32).
+
+## 4) Issue Dependency Graph (High-Level)
+
+Foundation
+- #1 monorepo -> #2, #3, #4, #5
+- #3 prisma/db + #4 express structure + #5 shared contracts are prerequisites for most backend features.
+
+Auth
+- #6 user model -> #7 auth endpoints -> #8 jwt middleware + `/me` -> #9 auth pages -> #10 auth context/protected routes
+
+Boards/Columns/Tasks
+- #11 models -> #12 board CRUD + #13 column APIs -> #14 dashboard + #15 board view
+- #16 task model -> #17 task CRUD -> #18 task cards/form -> #19 drag/drop -> #20 task detail modal
+
+Assignments/Labels/Filters
+- #21 assignment API -> #22 assignee picker/display -> #23 assignee filter
+- #24 label/tasklabel API -> #25 label manager/picker -> #26 labels on cards + label filter
+
+Comments/Activity
+- #27 comment/activity models -> #28 comments API + #29 activity service -> #30 comments + activity UI
+
+Quality/Release
+- #31 backend tests and #32 frontend tests run across prior features
+- #33 harden errors/loading states
+- #34 deployment + docs finalize runbooks, env vars, CI/CD
+
+## 5) Implementation Strategy Across Sessions
+
+- Keep each issue branch small and merge-ready with tests scoped to changed behavior.
+- Enforce contract-first changes in `packages/shared` before API/UI wiring.
+- Prefer additive schema migrations; avoid rebasing migration history.
+- Maintain feature flags only if a session introduces incomplete UX.
+- After #10, maintain end-to-end auth flow green as baseline gate for all subsequent issues.
