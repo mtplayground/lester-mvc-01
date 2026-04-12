@@ -6,6 +6,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { z } from 'zod';
 import ColumnContainer from '../components/boards/ColumnContainer';
 import TaskCard from '../components/tasks/TaskCard';
+import TaskDetailModal from '../components/tasks/TaskDetailModal';
+import type { TaskEditValues } from '../components/tasks/TaskEditForm';
 import { type BoardTask, type TasksByColumn, useDragAndDrop } from '../hooks/useDragAndDrop';
 import { api } from '../lib/api';
 import type { CreateTaskInput } from '../components/tasks/CreateTaskForm';
@@ -39,6 +41,7 @@ const taskSchema = z
     id: z.string().min(1),
     columnId: z.string().min(1),
     title: z.string().min(1),
+    description: z.string().nullable().optional(),
     priority: z.enum(['LOW', 'MEDIUM', 'HIGH']),
     dueDate: z.string().datetime().nullable().optional(),
     position: z.number(),
@@ -66,6 +69,7 @@ function toBoardTask(task: z.infer<typeof taskSchema>): BoardTask {
     id: task.id,
     columnId: task.columnId,
     title: task.title,
+    description: task.description ?? null,
     priority: task.priority,
     dueDate: task.dueDate ?? null,
     position: task.position,
@@ -85,9 +89,16 @@ export default function BoardPage() {
   const [tasksByColumn, setTasksByColumn] = useState<TasksByColumn>({});
   const [taskLoadingByColumn, setTaskLoadingByColumn] = useState<Record<string, boolean>>({});
   const [taskErrorsByColumn, setTaskErrorsByColumn] = useState<Record<string, string | null>>({});
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [isTaskSaving, setIsTaskSaving] = useState(false);
+  const [taskModalError, setTaskModalError] = useState<string | null>(null);
 
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8
+      }
+    }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates
     })
@@ -97,6 +108,22 @@ export default function BoardPage() {
     () => (board ? [...board.columns].sort((left, right) => left.position - right.position) : []),
     [board]
   );
+
+  const selectedTask = useMemo(() => {
+    if (!selectedTaskId) {
+      return null;
+    }
+
+    for (const tasks of Object.values(tasksByColumn)) {
+      const task = tasks.find((candidate) => candidate.id === selectedTaskId);
+
+      if (task) {
+        return task;
+      }
+    }
+
+    return null;
+  }, [selectedTaskId, tasksByColumn]);
 
   function setColumnTaskError(columnId: string, message: string | null): void {
     setTaskErrorsByColumn((previous) => ({
@@ -286,6 +313,65 @@ export default function BoardPage() {
     }
   }
 
+  function handleOpenTaskModal(task: BoardTask): void {
+    setSelectedTaskId(task.id);
+    setTaskModalError(null);
+  }
+
+  function handleCloseTaskModal(): void {
+    setSelectedTaskId(null);
+    setTaskModalError(null);
+  }
+
+  async function handleSaveTaskDetails(values: TaskEditValues): Promise<void> {
+    if (!selectedTask) {
+      return;
+    }
+
+    try {
+      setIsTaskSaving(true);
+      setTaskModalError(null);
+
+      const dueDate = values.dueDate ? new Date(`${values.dueDate}T00:00:00.000Z`).toISOString() : null;
+
+      const response = await api.put(`/tasks/${selectedTask.id}`, {
+        title: values.title,
+        description: values.description || null,
+        dueDate,
+        priority: values.priority
+      });
+
+      const updatedTask = toBoardTask(taskSchema.parse(response.data));
+
+      setTasksByColumn((previous) => {
+        const sourceColumnId = Object.keys(previous).find((columnId) =>
+          (previous[columnId] ?? []).some((task) => task.id === updatedTask.id)
+        );
+
+        if (!sourceColumnId) {
+          return previous;
+        }
+
+        return {
+          ...previous,
+          [sourceColumnId]: sortTasks(
+            (previous[sourceColumnId] ?? []).map((task) => (task.id === updatedTask.id ? { ...task, ...updatedTask } : task))
+          )
+        };
+      });
+    } catch (caughtError) {
+      if (axios.isAxiosError(caughtError) && typeof caughtError.response?.data?.message === 'string') {
+        setTaskModalError(caughtError.response.data.message);
+      } else {
+        setTaskModalError('Failed to save task details.');
+      }
+
+      throw caughtError;
+    } finally {
+      setIsTaskSaving(false);
+    }
+  }
+
   async function persistReorder(tasks: TaskReorderInput[]): Promise<void> {
     await api.patch('/tasks/reorder', { tasks });
   }
@@ -362,6 +448,7 @@ export default function BoardPage() {
                 onRename={(selectedColumn) => {
                   void handleRenameColumn(selectedColumn);
                 }}
+                onTaskClick={handleOpenTaskModal}
                 tasks={tasksByColumn[column.id] ?? []}
                 tasksError={taskErrorsByColumn[column.id]}
               />
@@ -385,6 +472,7 @@ export default function BoardPage() {
                 id: activeTask.id,
                 columnId: activeTask.columnId,
                 title: activeTask.title,
+                description: activeTask.description ?? null,
                 priority: activeTask.priority,
                 dueDate: activeTask.dueDate ?? null,
                 assignees: activeTask.assignees
@@ -393,6 +481,15 @@ export default function BoardPage() {
           </div>
         ) : null}
       </DragOverlay>
+
+      <TaskDetailModal
+        isOpen={Boolean(selectedTask)}
+        isSaving={isTaskSaving}
+        onClose={handleCloseTaskModal}
+        onSave={handleSaveTaskDetails}
+        saveError={taskModalError}
+        task={selectedTask}
+      />
     </DndContext>
   );
 }

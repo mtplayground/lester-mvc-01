@@ -12,6 +12,7 @@ export interface TaskCardData {
   id: string;
   columnId: string;
   title: string;
+  description?: string | null;
   priority: 'LOW' | 'MEDIUM' | 'HIGH';
   dueDate?: string | null;
   assignees?: TaskAssignee[];
@@ -20,6 +21,7 @@ export interface TaskCardData {
 interface TaskCardProps {
   task: TaskCardData;
   draggable?: boolean;
+  onClick?: (task: TaskCardData) => void;
 }
 
 function getAssigneeInitials(name: string): string {
@@ -50,7 +52,7 @@ function formatDueDate(value?: string | null): string | null {
   });
 }
 
-export default function TaskCard({ task, draggable = true }: TaskCardProps) {
+export default function TaskCard({ task, draggable = true, onClick }: TaskCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
     data: {
@@ -70,6 +72,11 @@ export default function TaskCard({ task, draggable = true }: TaskCardProps) {
   return (
     <article
       className={`space-y-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm ${draggable ? 'cursor-grab active:cursor-grabbing touch-none' : ''} ${isDragging ? 'opacity-40' : ''}`}
+      onClick={() => {
+        if (!isDragging && onClick) {
+          onClick(task);
+        }
+      }}
       ref={setNodeRef}
       style={style}
       {...attributes}

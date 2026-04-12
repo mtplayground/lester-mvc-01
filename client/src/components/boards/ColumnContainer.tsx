@@ -18,6 +18,7 @@ interface ColumnContainerProps {
   isLoadingTasks?: boolean;
   isCreatingTask?: boolean;
   isBusy?: boolean;
+  onTaskClick: (task: BoardTask) => void;
   onCreateTask: (columnId: string, input: CreateTaskInput) => Promise<void>;
   onRename: (column: Column) => void;
   onDelete: (column: Column) => void;
@@ -30,6 +31,7 @@ export default function ColumnContainer({
   isLoadingTasks = false,
   isCreatingTask = false,
   isBusy = false,
+  onTaskClick,
   onCreateTask,
   onRename,
   onDelete
@@ -72,10 +74,12 @@ export default function ColumnContainer({
                   id: task.id,
                   columnId: task.columnId,
                   title: task.title,
+                  description: task.description ?? null,
                   priority: task.priority,
                   dueDate: task.dueDate ?? null,
                   assignees: task.assignees
                 }}
+                onClick={() => onTaskClick(task)}
               />
             ))}
           </SortableContext>
