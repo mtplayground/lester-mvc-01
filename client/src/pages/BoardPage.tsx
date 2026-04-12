@@ -1,0 +1,213 @@
+import axios from 'axios';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { z } from 'zod';
+import ColumnContainer from '../components/boards/ColumnContainer';
+import { api } from '../lib/api';
+
+const columnSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  position: z.number()
+});
+
+const boardSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  createdBy: z.string().min(1),
+  createdAt: z.string().datetime(),
+  columns: z.array(columnSchema)
+});
+
+const boardListSchema = z.array(boardSchema);
+
+type Board = z.infer<typeof boardSchema>;
+type Column = z.infer<typeof columnSchema>;
+
+export default function BoardPage() {
+  const navigate = useNavigate();
+  const { boardId } = useParams();
+  const [board, setBoard] = useState<Board | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAddingColumn, setIsAddingColumn] = useState(false);
+  const [busyColumnId, setBusyColumnId] = useState<string | null>(null);
+
+  const sortedColumns = useMemo(
+    () => (board ? [...board.columns].sort((left, right) => left.position - right.position) : []),
+    [board]
+  );
+
+  async function fetchBoard(): Promise<void> {
+    if (!boardId) {
+      setError('Board not found.');
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      const response = await api.get('/boards');
+      const boards = boardListSchema.parse(response.data);
+      const currentBoard = boards.find((candidate) => candidate.id === boardId);
+
+      if (!currentBoard) {
+        setError('Board not found.');
+        setBoard(null);
+        return;
+      }
+
+      setBoard(currentBoard);
+    } catch {
+      setError('Failed to load board. Please refresh and try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void fetchBoard();
+  }, [boardId]);
+
+  async function handleAddColumn(): Promise<void> {
+    if (!board) {
+      return;
+    }
+
+    const name = window.prompt('Column name');
+
+    if (!name) {
+      return;
+    }
+
+    const trimmedName = name.trim();
+
+    if (!trimmedName) {
+      return;
+    }
+
+    try {
+      setIsAddingColumn(true);
+      await api.post('/columns', { boardId: board.id, name: trimmedName });
+      await fetchBoard();
+    } catch {
+      setError('Failed to create column.');
+    } finally {
+      setIsAddingColumn(false);
+    }
+  }
+
+  async function handleRenameColumn(column: Column): Promise<void> {
+    const nextName = window.prompt('Rename column', column.name);
+
+    if (!nextName) {
+      return;
+    }
+
+    const trimmedName = nextName.trim();
+
+    if (!trimmedName) {
+      return;
+    }
+
+    try {
+      setBusyColumnId(column.id);
+      await api.put(`/columns/${column.id}`, { name: trimmedName });
+      await fetchBoard();
+    } catch {
+      setError('Failed to rename column.');
+    } finally {
+      setBusyColumnId(null);
+    }
+  }
+
+  async function handleDeleteColumn(column: Column): Promise<void> {
+    const confirmed = window.confirm(`Delete column "${column.name}"?`);
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setBusyColumnId(column.id);
+      await api.delete(`/columns/${column.id}`);
+      await fetchBoard();
+    } catch (caughtError) {
+      if (axios.isAxiosError(caughtError) && typeof caughtError.response?.data?.message === 'string') {
+        setError(caughtError.response.data.message);
+      } else {
+        setError('Failed to delete column.');
+      }
+    } finally {
+      setBusyColumnId(null);
+    }
+  }
+
+  if (isLoading) {
+    return <p className="text-sm text-slate-600">Loading board...</p>;
+  }
+
+  if (!board) {
+    return (
+      <section className="space-y-3">
+        <p className="rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700">{error ?? 'Board not found.'}</p>
+        <button
+          className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+          onClick={() => navigate('/')}
+          type="button"
+        >
+          Back to dashboard
+        </button>
+      </section>
+    );
+  }
+
+  return (
+    <section className="space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-2xl font-semibold tracking-tight text-slate-900">{board.name}</h2>
+          <p className="text-sm text-slate-600">Manage columns and keep board structure organized.</p>
+        </div>
+        <button
+          className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500"
+          disabled={isAddingColumn}
+          onClick={() => {
+            void handleAddColumn();
+          }}
+          type="button"
+        >
+          {isAddingColumn ? 'Adding...' : 'Add Column'}
+        </button>
+      </div>
+
+      {error ? <p className="rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p> : null}
+
+      <div className="overflow-x-auto pb-2">
+        <div className="flex min-h-[320px] gap-4">
+          {sortedColumns.map((column) => (
+            <ColumnContainer
+              column={column}
+              isBusy={busyColumnId === column.id}
+              key={column.id}
+              onDelete={(selectedColumn) => {
+                void handleDeleteColumn(selectedColumn);
+              }}
+              onRename={(selectedColumn) => {
+                void handleRenameColumn(selectedColumn);
+              }}
+            />
+          ))}
+
+          {sortedColumns.length === 0 ? (
+            <div className="flex min-h-[280px] w-72 shrink-0 items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white p-4 text-center text-sm text-slate-600">
+              No columns yet. Add a column to get started.
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </section>
+  );
+}
