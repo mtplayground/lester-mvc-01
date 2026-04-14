@@ -2,6 +2,10 @@
 FROM node:20-bookworm-slim AS build
 WORKDIR /app
 
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends openssl ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+
 COPY package.json package-lock.json ./
 COPY client/package.json ./client/package.json
 COPY server/package.json ./server/package.json
@@ -21,6 +25,10 @@ RUN npm prune --omit=dev --workspaces
 FROM node:20-bookworm-slim AS runtime
 WORKDIR /app
 
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends openssl ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+
 ENV NODE_ENV=production
 ENV PORT=3000
 
@@ -32,6 +40,7 @@ COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/server/prisma ./server/prisma
 COPY --from=build /app/server/dist ./server/dist
 COPY --from=build /app/client/dist ./client/dist
+COPY .env ./.env
 
 EXPOSE 3000
 

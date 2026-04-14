@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import app from './app';
+import { ensureAdminUser } from './lib/bootstrapAdmin';
 import { verifyDatabaseConnection } from './lib/prisma';
 
 const port = Number(process.env.PORT ?? 3000);
@@ -7,6 +8,7 @@ const port = Number(process.env.PORT ?? 3000);
 async function startServer(): Promise<void> {
   try {
     await verifyDatabaseConnection();
+    await ensureAdminUser();
     app.listen(port, '0.0.0.0', () => {
       console.log(`Server listening on http://0.0.0.0:${port}`);
     });
