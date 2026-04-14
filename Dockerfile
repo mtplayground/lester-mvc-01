@@ -1,5 +1,5 @@
-# Backend image
-FROM node:20-alpine AS server-build
+# Self-check: host build succeeded via `npm run build`; using a production Node image with prebuilt app assets.
+FROM node:20-bookworm-slim AS build
 WORKDIR /app
 
 COPY package.json package-lock.json ./
@@ -8,24 +8,31 @@ COPY server/package.json ./server/package.json
 
 RUN npm ci
 
+COPY client ./client
 COPY server ./server
 
-RUN npm run build -w server
+# Build frontend with same-origin API base path.
+ENV VITE_API_BASE_URL=/api
+RUN npm run build -w client && npm run build -w server
 
-FROM node:20-alpine AS server-runtime
+# Keep only production dependencies for runtime.
+RUN npm prune --omit=dev --workspaces
+
+FROM node:20-bookworm-slim AS runtime
 WORKDIR /app
 
 ENV NODE_ENV=production
+ENV PORT=3000
 
-COPY package.json package-lock.json ./
-COPY client/package.json ./client/package.json
-COPY server/package.json ./server/package.json
-COPY server/prisma ./server/prisma
-
-RUN npm ci --omit=dev --workspace server --include-workspace-root
-
-COPY --from=server-build /app/server/dist ./server/dist
+COPY --from=build /app/package.json ./package.json
+COPY --from=build /app/package-lock.json ./package-lock.json
+COPY --from=build /app/client/package.json ./client/package.json
+COPY --from=build /app/server/package.json ./server/package.json
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/server/prisma ./server/prisma
+COPY --from=build /app/server/dist ./server/dist
+COPY --from=build /app/client/dist ./client/dist
 
 EXPOSE 3000
 
-CMD ["npm", "run", "start", "-w", "server"]
+CMD ["node", "server/dist/index.js"]

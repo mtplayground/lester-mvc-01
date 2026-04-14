@@ -1,0 +1,15 @@
+app = "lester-mvc-01-64197f"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_start = true
+  auto_stop = "stop"
+
+[mounts]
+  source = "data"
+  destination = "/app/data"
