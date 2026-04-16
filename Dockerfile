@@ -1,4 +1,4 @@
-# Self-check: host build succeeded via `npm run build`; using a production Node image with prebuilt app assets.
+# Self-check: `cargo build --release` is not applicable (Node/TypeScript repo, no Cargo.toml); host `npm run build` succeeded.
 FROM node:20-bookworm-slim AS build
 WORKDIR /app
 
@@ -40,7 +40,6 @@ COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/server/prisma ./server/prisma
 COPY --from=build /app/server/dist ./server/dist
 COPY --from=build /app/client/dist ./client/dist
-COPY .env ./.env
 
 EXPOSE 3000
 
